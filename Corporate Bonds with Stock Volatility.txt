@@ -1,0 +1,364 @@
+Python code:
+import pandas as pd
+import numpy as np
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+from scipy import stats
+from statsmodels.graphics.tsaplots import plot_acf
+from statsmodels.stats.diagnostic import acorr_ljungbox
+from scipy.stats import shapiro
+from scipy.stats import jarque_bera
+from statsmodels.tsa import stattools
+
+# Load the data from the Excel spreadsheet
+data = pd.read_excel("peverelData.xlsx")
+
+# Align rows
+data = data.dropna()
+
+# Create dataframes for dependent and independent variables
+aX = data[['Q(t-1)', 'V(t)']]
+ay = data[['Q(t)']]
+bX = data[['S(t-1)', 'V(t)']]
+by = data[['S(t)']]
+cX = data[['S+Q(t-1)', 'V(t)']]
+cy = data[['S+Q']]
+
+# Create initial model
+model_a = sm.OLS(ay, aX).fit()
+model_b = sm.OLS(by, bX).fit()
+model_c = sm.OLS(cy, cX).fit()
+
+# Print initial model summary
+print(model_a.summary())
+print(model_b.summary())
+print(model_c.summary())
+
+#Create residual variables
+residuals_a = model_a.resid
+residuals_b = model_b.resid
+residuals_c = model_c.resid
+
+# Insert residuals into dataframe
+data['residuals_a'] = residuals_a
+data['residuals_b'] = residuals_b
+data['residuals_c'] = residuals_c
+
+# Create new independent variables with residuals included
+aX_resid = data[['Q(t-1)', 'V(t)', 'residuals_a']]
+bX_resid = data[['Q(t-1)', 'V(t)', 'residuals_b']]
+cX_resid = data[['Q(t-1)', 'V(t)', 'residuals_c']]
+
+# Create new model with residuals
+model_a_resid = sm.OLS(ay, aX_resid).fit()
+model_b_resid = sm.OLS(by, bX_resid).fit()
+model_c_resid = sm.OLS(cy, cX_resid).fit()
+
+# Print new model summary
+print(model_a_resid.summary())
+print(model_b_resid.summary())
+print(model_c_resid.summary())
+
+# Create residuals variables for new model
+residuals_a = model_a_resid.resid
+residuals_b = model_b_resid.resid
+residuals_c = model_c_resid.resid
+
+# Create variables for absolute values of residuals
+abs_residuals_a = np.abs(residuals_a)
+abs_residuals_b = np.abs(residuals_b)
+abs_residuals_c = np.abs(residuals_c)
+
+# Breaker
+print("\n(a)\n")
+
+# ACF plots
+plot_acf(residuals_a, lags=40, title='A Autocorrelation')
+plot_acf(abs_residuals_a, lags=40, title='A Absolute Autocorrelation')
+
+#Ljung-Box Test
+acf_resida, stat_resida, p_resida, = stattools.acf(residuals_a, fft = False, qstat = True)
+acf_absresida, stat_avsresida, p_absresida, = stattools.acf(abs_residuals_a, fft = False, qstat = True)
+print('Ljung-Box p-value for residuals, original values')
+print('lag 10 = ', p_resida[9])
+print('Ljung-Box p-value for residuals, original values')
+print('lag 10 = ', p_absresida[9])
+
+# Shapiro-Wilk test
+shapiro_stat, shapiro_p = shapiro(residuals_a)
+print(f"\nShapiro-Wilk Test Statistic: {shapiro_stat}")
+print(f"Shapiro-Wilk Test p-value: {shapiro_p}")
+
+# Interpret the Shapiro-Wilk test result
+if shapiro_p > 0.05:
+    print("The residuals are Gaussian (fail to reject null).")
+else:
+    print("The residuals are not Gaussian (reject null).")
+
+# Jarque-Bera test
+jarque_stat, jarque_p = jarque_bera(residuals_a)
+print(f"\nJarque-Bera Test Statistic: {jarque_stat}")
+print(f"Jarque-Bera Test p-value: {jarque_p}")
+
+# QQ plot vs the normal law
+sm.qqplot(residuals_a, line='s')
+plt.title(f'QQ Plot vs Normal Law for a')
+
+# Breaker
+print("\n(b)\n")
+
+# Repeat of lines 70-94 for b
+plot_acf(residuals_b, lags=40, title='B Autocorrelation')
+plot_acf(abs_residuals_b, lags=40, title='B Absolute Autocorrelation')
+
+#Ljung-Box Test
+acf_residb, stat_residb, p_residb, = stattools.acf(residuals_b, fft = False, qstat = True)
+acf_absresidb, stat_avsresidb, p_absresidb, = stattools.acf(abs_residuals_b, fft = False, qstat = True)
+print('Ljung-Box p-value for residuals, original values')
+print('lag 10 = ', p_residb[9])
+print('Ljung-Box p-value for residuals, original values')
+print('lag 10 = ', p_absresidb[9])
+
+shapiro_stat, shapiro_p = shapiro(residuals_b)
+print(f"\nShapiro-Wilk Test Statistic: {shapiro_stat}")
+print(f"Shapiro-Wilk Test p-value: {shapiro_p}")
+
+if shapiro_p > 0.05:
+    print("The residuals are Gaussian (fail to reject null).")
+else:
+    print("The residuals are not Gaussian (reject null).")
+
+jarque_stat, jarque_p = jarque_bera(residuals_b)
+print(f"\nJarque-Bera Test Statistic: {jarque_stat}")
+print(f"Jarque-Bera Test p-value: {jarque_p}")
+
+sm.qqplot(residuals_b, line='s')
+plt.title(f'QQ Plot vs Normal Law for b')
+
+# Breaker
+print("\n(c)\n")
+
+# Repeat of lines 70-94 for c
+plot_acf(residuals_c, lags=40, title='C Autocorrelation')
+plot_acf(abs_residuals_c, lags=40, title='C Absolute Autocorrelation')
+
+#Ljung-Box Test
+acf_residc, stat_residc, p_residc, = stattools.acf(residuals_c, fft = False, qstat = True)
+acf_absresidc, stat_avsresidc, p_absresidc, = stattools.acf(abs_residuals_c, fft = False, qstat = True)
+print('Ljung-Box p-value for residuals, original values')
+print('lag 10 = ', p_residc[9])
+print('Ljung-Box p-value for residuals, original values')
+print('lag 10 = ', p_absresidc[9])
+
+shapiro_stat, shapiro_p = shapiro(residuals_c)
+print(f"\nShapiro-Wilk Test Statistic: {shapiro_stat}")
+print(f"Shapiro-Wilk Test p-value: {shapiro_p}")
+
+if shapiro_p > 0.05:
+    print("The residuals are Gaussian (fail to reject null).")
+else:
+    print("The residuals are not Gaussian (reject null).")
+
+jarque_stat, jarque_p = jarque_bera(residuals_c)
+print(f"\nJarque-Bera Test Statistic: {jarque_stat}")
+print(f"Jarque-Bera Test p-value: {jarque_p}")
+
+sm.qqplot(residuals_c, line='s')
+plt.title(f'QQ Plot vs Normal Law for c')
+plt.show()
+
+                            OLS Regression Results
+==============================================================================
+Dep. Variable:                   Q(t)   R-squared:                       0.366
+Model:                            OLS   Adj. R-squared:                  0.365
+Method:                 Least Squares   F-statistic:                     281.1
+Date:                Tue, 24 Oct 2023   Prob (F-statistic):           3.89e-50
+Time:                        23:59:26   Log-Likelihood:                 1157.1
+No. Observations:                 489   AIC:                            -2310.
+Df Residuals:                     487   BIC:                            -2302.
+Df Model:                           1
+Covariance Type:            nonrobust
+==============================================================================
+                 coef    std err          t      P>|t|      [0.025      0.975]
+------------------------------------------------------------------------------
+Q(t-1)         1.8731      0.112     16.766      0.000       1.654       2.093
+V(t)           0.0126      0.004      3.558      0.000       0.006       0.020
+==============================================================================
+Omnibus:                       17.210   Durbin-Watson:                   0.213
+Prob(Omnibus):                  0.000   Jarque-Bera (JB):               15.646
+Skew:                           0.379   Prob(JB):                     0.000400
+Kurtosis:                       2.560   Cond. No.                         109.
+==============================================================================
+
+Notes:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+                            OLS Regression Results
+==============================================================================
+Dep. Variable:                   S(t)   R-squared:                       0.029
+Model:                            OLS   Adj. R-squared:                  0.027
+Method:                 Least Squares   F-statistic:                     14.56
+Date:                Tue, 24 Oct 2023   Prob (F-statistic):           0.000154
+Time:                        23:59:26   Log-Likelihood:                 183.35
+No. Observations:                 489   AIC:                            -362.7
+Df Residuals:                     487   BIC:                            -354.3
+Df Model:                           1
+Covariance Type:            nonrobust
+==============================================================================
+                 coef    std err          t      P>|t|      [0.025      0.975]
+------------------------------------------------------------------------------
+S(t-1)         1.1614      0.304      3.815      0.000       0.563       1.759
+V(t)           0.7469      0.029     26.143      0.000       0.691       0.803
+==============================================================================
+Omnibus:                       50.338   Durbin-Watson:                   0.050
+Prob(Omnibus):                  0.000   Jarque-Bera (JB):               63.581
+Skew:                          -0.874   Prob(JB):                     1.56e-14
+Kurtosis:                       3.248   Cond. No.                         40.7
+==============================================================================
+
+Notes:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+                            OLS Regression Results
+==============================================================================
+Dep. Variable:                    S+Q   R-squared:                       0.641
+Model:                            OLS   Adj. R-squared:                  0.640
+Method:                 Least Squares   F-statistic:                     868.2
+Date:                Tue, 24 Oct 2023   Prob (F-statistic):          2.65e-110
+Time:                        23:59:26   Log-Likelihood:                 2459.1
+No. Observations:                 489   AIC:                            -4914.
+Df Residuals:                     487   BIC:                            -4906.
+Df Model:                           1
+Covariance Type:            nonrobust
+==============================================================================
+                 coef    std err          t      P>|t|      [0.025      0.975]
+------------------------------------------------------------------------------
+S+Q(t-1)       0.1214      0.004     29.465      0.000       0.113       0.130
+V(t)          -1.0028      0.000  -4038.289      0.000      -1.003      -1.002
+==============================================================================
+Omnibus:                        5.283   Durbin-Watson:                   0.151
+Prob(Omnibus):                  0.071   Jarque-Bera (JB):                5.454
+Skew:                           0.178   Prob(JB):                       0.0654
+Kurtosis:                       3.376   Cond. No.                         57.6
+==============================================================================
+
+Notes:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+                            OLS Regression Results
+==============================================================================
+Dep. Variable:                   Q(t)   R-squared:                       1.000
+Model:                            OLS   Adj. R-squared:                  1.000
+Method:                 Least Squares   F-statistic:                 4.185e+31
+Date:                Tue, 24 Oct 2023   Prob (F-statistic):               0.00
+Time:                        23:59:26   Log-Likelihood:                 17505.
+No. Observations:                 489   AIC:                        -3.500e+04
+Df Residuals:                     486   BIC:                        -3.499e+04
+Df Model:                           2
+Covariance Type:            nonrobust
+===============================================================================
+                  coef    std err          t      P>|t|      [0.025      0.975]
+-------------------------------------------------------------------------------
+Q(t-1)          1.8731   3.38e-16   5.53e+15      0.000       1.873       1.873
+V(t)            0.0126   1.08e-17   1.17e+15      0.000       0.013       0.013
+residuals_a     1.0000   1.37e-16   7.28e+15      0.000       1.000       1.000
+==============================================================================
+Omnibus:                       20.795   Durbin-Watson:                   0.026
+Prob(Omnibus):                  0.000   Jarque-Bera (JB):               22.704
+Skew:                          -0.528   Prob(JB):                     1.17e-05
+Kurtosis:                       2.979   Cond. No.                         109.
+==============================================================================
+
+Notes:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+                            OLS Regression Results
+==============================================================================
+Dep. Variable:                   S(t)   R-squared:                       0.998
+Model:                            OLS   Adj. R-squared:                  0.998
+Method:                 Least Squares   F-statistic:                 9.875e+04
+Date:                Tue, 24 Oct 2023   Prob (F-statistic):               0.00
+Time:                        23:59:26   Log-Likelihood:                 1645.5
+No. Observations:                 489   AIC:                            -3285.
+Df Residuals:                     486   BIC:                            -3272.
+Df Model:                           2
+Covariance Type:            nonrobust
+===============================================================================
+                  coef    std err          t      P>|t|      [0.025      0.975]
+-------------------------------------------------------------------------------
+Q(t-1)         -3.7864      0.052    -72.527      0.000      -3.889      -3.684
+V(t)            0.7571      0.002    463.108      0.000       0.754       0.760
+residuals_b     1.1289      0.003    390.469      0.000       1.123       1.135
+==============================================================================
+Omnibus:                       68.927   Durbin-Watson:                   0.357
+Prob(Omnibus):                  0.000   Jarque-Bera (JB):               96.586
+Skew:                          -0.985   Prob(JB):                     1.06e-21
+Kurtosis:                       3.927   Cond. No.                         138.
+==============================================================================
+
+Notes:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+                            OLS Regression Results
+==============================================================================
+Dep. Variable:                    S+Q   R-squared:                       0.544
+Model:                            OLS   Adj. R-squared:                  0.542
+Method:                 Least Squares   F-statistic:                     289.5
+Date:                Tue, 24 Oct 2023   Prob (F-statistic):           1.62e-83
+Time:                        23:59:26   Log-Likelihood:                 2400.6
+No. Observations:                 489   AIC:                            -4795.
+Df Residuals:                     486   BIC:                            -4783.
+Df Model:                           2
+Covariance Type:            nonrobust
+===============================================================================
+                  coef    std err          t      P>|t|      [0.025      0.975]
+-------------------------------------------------------------------------------
+Q(t-1)          0.1327      0.009     14.010      0.000       0.114       0.151
+V(t)           -0.9999      0.000  -3336.119      0.000      -1.000      -0.999
+residuals_c     0.7127      0.055     12.941      0.000       0.605       0.821
+==============================================================================
+Omnibus:                       39.179   Durbin-Watson:                   0.223
+Prob(Omnibus):                  0.000   Jarque-Bera (JB):               47.326
+Skew:                           0.759   Prob(JB):                     5.29e-11
+Kurtosis:                       2.866   Cond. No.                         682.
+==============================================================================
+
+Notes:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+
+(a)
+
+Ljung-Box p-value for residuals, original values
+lag 10 =  0.0
+Ljung-Box p-value for residuals, original values
+lag 10 =  0.0
+
+Shapiro-Wilk Test Statistic: 0.9468605518341064
+Shapiro-Wilk Test p-value: 3.071819057801073e-12
+The residuals are not Gaussian (reject null).
+
+Jarque-Bera Test Statistic: 22.70444640869889
+Jarque-Bera Test p-value: 1.1743352709024848e-05
+
+(b)
+
+Ljung-Box p-value for residuals, original values
+lag 10 =  2.471397629556493e-278
+Ljung-Box p-value for residuals, original values
+lag 10 =  2.278411733775758e-144
+
+Shapiro-Wilk Test Statistic: 0.9390542507171631
+Shapiro-Wilk Test p-value: 2.8930677298255603e-13
+The residuals are not Gaussian (reject null).
+
+Jarque-Bera Test Statistic: 96.58560073110102
+Jarque-Bera Test p-value: 1.063416233176231e-21
+
+(c)
+
+Ljung-Box p-value for residuals, original values
+lag 10 =  0.0
+Ljung-Box p-value for residuals, original values
+lag 10 =  9.054955775571897e-169
+
+Shapiro-Wilk Test Statistic: 0.9397624135017395
+Shapiro-Wilk Test p-value: 3.553479938685905e-13
+The residuals are not Gaussian (reject null).
+
+Jarque-Bera Test Statistic: 47.32638584676541
+Jarque-Bera Test p-value: 5.2869583507561325e-11
